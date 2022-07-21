@@ -14,7 +14,29 @@ pub struct Data {
     params_holder: Mutex<Vec<HashMap<String, HashMap<String, usize>>>>,
 }
 
-#[poise::command(prefix_command)]
+/// ヘルプを表示します． 
+#[poise::command(prefix_command, track_edits, slash_command)]
+async fn help(
+    ctx: Context<'_>,
+    #[description = "ヘルプを表示させたいコマンド"]
+    #[autocomplete = "poise::builtins::autocomplete_command"]
+    command: Option<String>,
+) -> Result<(), Error> {
+    poise::builtins::help(
+        ctx,
+        command.as_deref(),
+        poise::builtins::HelpConfiguration {
+            extra_text_at_bottom: "\
+                スガタは いつでも どこにでも",
+            show_context_menu_commands: true,
+            ..Default::default()
+        },
+    )
+    .await?;
+    Ok(())
+}
+
+#[poise::command(prefix_command, hide_in_help)]
 async fn register(ctx: Context<'_>) -> Result<(), Error> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
@@ -41,7 +63,7 @@ async fn main() {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD TOKEN");
     let framework = poise::Framework::build()
         .options(poise::FrameworkOptions {
-            commands: vec![cm(), skill(), new(), insan(), dice(), sdice(), register()],
+            commands: vec![set(), cm(), skill(), new(), insan(), dice(), sdice(), register(), help()],
             on_error: |error| Box::pin(on_error(error)),
             ..Default::default()
         })

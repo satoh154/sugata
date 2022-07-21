@@ -111,11 +111,11 @@ pub fn skill_dice_msg(
     let operator = operator.unwrap_or("±".to_string());
     let corr_val = corr_val.unwrap_or(0);
     let msg = if bonus > penalty {
-        format!("`技能ロール / {}: {}({}{}, b{}))`\n=> {}: {}", skill_name, desire, operator, corr_val, bonus, dice_res, judge)
+        format!("`技能ロール / {}: {}({}{}, b{})`\n=> {}: {}", skill_name, desire, operator, corr_val, bonus, dice_res, judge)
     } else if penalty > bonus {
-        format!("`技能ロール / {}: {}({}{}, p{}))`\n=> {}: {}", skill_name, desire, operator, corr_val, penalty, dice_res, judge)
+        format!("`技能ロール / {}: {}({}{}, p{})`\n=> {}: {}", skill_name, desire, operator, corr_val, penalty, dice_res, judge)
     } else {
-        format!("`技能ロール / {}: {}({}{}))`\n=> {}: {}", skill_name, desire, operator, corr_val, dice_res, judge)
+        format!("`技能ロール / {}: {}({}{})`\n=> {}: {}", skill_name, desire, operator, corr_val, dice_res, judge)
     };
 
     msg
@@ -253,7 +253,35 @@ pub fn character_make() -> String {
     } else {
         status.insert("MOV", String::from("8"));
     }
-    let status_msg = format!("{:?}", status);
-    let msg = format!("`探索者作成`\n{}", status_msg);
+    let msg = format!(
+        "`探索者作成`\n\
+        STR: {}\n\
+        CON: {}\n\
+        SIZ: {}\n\
+        DEX: {}\n\
+        APP: {}\n\
+        INT: {}\n\
+        POW: {}\n\
+        EDU: {}\n\
+        SAN: {}\n\
+        MP: {}\n\
+        幸運: {}\n\
+        耐久力: {}\n\
+        db: {}\n\
+        ビルド: {}\n\
+        MOV: {}", 
+        status["STR"], status["CON"], status["SIZ"], status["DEX"], status["APP"], status["INT"], 
+        status["POW"], status["EDU"], status["SAN"], status["MP"], status["幸運"], status["耐久力"], 
+        status["db"], status["ビルド"], status["MOV"]
+    );
+    msg
+}
+
+pub fn set_status_msg(skill_name: &str, before: usize, after: usize, operator: &str, corr: usize) -> String {
+    let msg = format!(
+        "`ステータス修正 / {}({}) {} {}`\n\
+        => **{}**",
+        skill_name, before, operator, corr, after
+    );
     msg
 }

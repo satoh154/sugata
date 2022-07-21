@@ -2,14 +2,29 @@ use crate::messenger::*;
 use crate::session::*;
 
 use futures::stream::{Stream, StreamExt};
-use poise::serenity_prelude as serenity;
 use crate::{Context, Error};
 
 async fn autocomplete_operator(
     _ctx: Context<'_>,
     _partial: String,
 ) -> Vec<String> {
-    vec!["+".to_string(), "-".to_string(), "*".to_string(), "/".to_string()]
+    vec!["+", "-", "*", "/"]
+    .iter()
+    .map(|name| name.to_string())
+    .collect()
+}
+
+async fn autocomplete_status(
+    _ctx: Context<'_>,
+    _partial: String,
+) -> Vec<String> {
+    vec![
+        "STR", "CON", "SIZ", "DEX", "APP", "INT", "POW",
+        "EDU", "SAN", "MP", "幸運", "耐久力"
+    ]
+    .iter()
+    .map(|name| name.to_string())
+    .collect()
 }
 
 async fn autocomplete_skill_name(
@@ -24,7 +39,7 @@ async fn autocomplete_skill_name(
         .filter(move |name| futures::future::ready(name.starts_with(&partial)))
 }
 
-/// キャラクターシートの読み込み
+/// キャラクターシートを読み込みます．
 #[poise::command(prefix_command)]
 pub async fn new(
     ctx: Context<'_>,
@@ -41,7 +56,7 @@ pub async fn new(
     Ok(())
 }
 
-/// 技能判定を行う
+/// 技能判定を行います．
 #[poise::command(slash_command)]
 pub async fn skill(
     ctx: Context<'_>,
@@ -53,10 +68,13 @@ pub async fn skill(
     operator: Option<String>,
     #[description = "補正値"]
     #[min = 1]
+    #[max = 666]
     corr: Option<usize>,
     #[description = "ボーナスダイスの数"]
+    #[max = 666]
     bonus: Option<usize>,
     #[description = "ペナルティダイスの数"]
+    #[max = 666]
     penalty: Option<usize>,
 ) -> Result<(), Error> {
     let u = ctx.author();
@@ -67,27 +85,17 @@ pub async fn skill(
     Ok(())
 }
 
-/// アカウントが作成された日時を表示
-#[poise::command(slash_command, prefix_command)]
-pub async fn age(
-    ctx: Context<'_>,
-    #[description = "ユーザー"] user: Option<serenity::User>,
-) -> Result<(), Error> {
-    let u = user.as_ref().unwrap_or_else(|| ctx.author());
-    let response = format!("{} のアカウントは {} に作成されました.", u.name, u.created_at());
-    ctx.say(response).await?;
-    Ok(())
-}
-
-/// ダイスを振る
+/// ダイスを振ります．
 #[poise::command(slash_command, prefix_command)]
 pub async fn dice(
     ctx: Context<'_>,
     #[description = "ダイスの個数"]
     #[min = 1]
+    #[max = 666]
     qty: usize,
     #[description = "ダイスの面"]
     #[min = 1]
+    #[max = 666]
     die: usize,
     #[description = "目標値"]
     desire: Option<usize>,
@@ -100,15 +108,17 @@ pub async fn dice(
     Ok(())
 }
 
-/// 秘匿ダイスを振る
+/// 秘匿ダイスを振ります．
 #[poise::command(slash_command, prefix_command, ephemeral)]
 pub async fn sdice(
     ctx: Context<'_>,
     #[description = "ダイスの個数"]
     #[min = 1]
+    #[max = 666]
     qty: usize,
     #[description = "ダイスの面"]
     #[min = 1]
+    #[max = 666]
     die: usize,
     #[description = "目標値"]
     desire: Option<usize>,
@@ -121,24 +131,14 @@ pub async fn sdice(
     Ok(())
 }
 
-/// メッセージの内容を表示
-#[poise::command(context_menu_command = "Echo", slash_command)]
-pub async fn echo(
-    ctx: Context<'_>,
-    #[description = "表示するメッセージ(リンクまたはIDを入力)"] msg: serenity::Message,
-) -> Result<(), Error> {
-    ctx.say(&msg.content).await?;
-    Ok(())
-}
-
-/// 狂気の発作
+/// 狂気の発作を表示します．
 #[poise::command(slash_command, subcommands("real", "summary"))]
 pub async fn insan(ctx: Context<'_>) -> Result<(), Error> {
     ctx.say("").await?;
     Ok(())
 }
 
-/// 狂気の発作(リアルタイム)
+/// 狂気の発作(リアルタイム)を表示します．
 #[poise::command(prefix_command, slash_command)]
 pub async fn real(ctx: Context<'_>) -> Result<(), Error> {
     let response = insan_realtime_msg();
@@ -146,7 +146,7 @@ pub async fn real(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// 狂気の発作(サマリー)
+/// 狂気の発作(サマリー)を表示します．
 #[poise::command(prefix_command, slash_command)]
 pub async fn summary(ctx: Context<'_>) -> Result<(), Error> {
     let response = insan_summary_msg();
@@ -154,10 +154,48 @@ pub async fn summary(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// キャラクターを作成する
+/// キャラクターを作成します．
 #[poise::command(prefix_command, slash_command)]
 pub async fn cm(ctx: Context<'_>) -> Result<(), Error> {
     let response = character_make();
+    ctx.say(response).await?;
+    Ok(())
+}
+
+/// ステータスを修正します．
+#[poise::command(prefix_command, slash_command)]
+pub async fn set(
+    ctx: Context<'_>,
+    #[description = "ステータス名"]
+    #[autocomplete = "autocomplete_status"]
+    status_name: String,
+    #[description = "補正演算子"]
+    #[autocomplete = "autocomplete_operator"]
+    operator: String,
+    #[description = "補正値"]
+    #[min = 1]
+    #[max = 666]
+    corr: usize,
+) -> Result<(), Error> {
+    let u = ctx.author();
+    let mut params_holder = ctx.data().params_holder.lock().await;
+    let before_skill_val = params_holder[0][&u.name][&status_name];
+    if operator == "+" {
+        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() += corr; 
+    } else if operator == "-" {
+        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() -= corr; 
+    } else if operator == "*" {
+        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() *= corr; 
+    } else if operator == "/" {
+        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() /= corr; 
+    }
+    let after_skill_val = params_holder[0][&u.name][&status_name];
+    let response = set_status_msg(
+        &status_name, 
+        before_skill_val, 
+        after_skill_val, 
+        &operator, corr
+    );
     ctx.say(response).await?;
     Ok(())
 }
