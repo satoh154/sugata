@@ -78,13 +78,13 @@ pub fn skill_dice_msg(
     if let Some(o) = &operator {
         if let Some(c) = corr_val {
             if o == "+" {
-                desire += c
+                desire = desire.saturating_add(c);
             } else if o == "-" {
-                desire -= c
+                desire = desire.saturating_sub(c);
             } else if o == "*" {
-                desire *= c 
+                desire = desire.saturating_mul(c); 
             } else if o == "/" {
-                desire /= c
+                desire = desire.saturating_div(c);
             };
         }
     }
@@ -111,9 +111,9 @@ pub fn skill_dice_msg(
     let operator = operator.unwrap_or("±".to_string());
     let corr_val = corr_val.unwrap_or(0);
     let msg = if bonus > penalty {
-        format!("`技能ロール / {}: {}({}{}, b{})`\n=> {}: {}", skill_name, desire, operator, corr_val, bonus, dice_res, judge)
+        format!("`技能ロール / {}: {}({}{}, b{})`\n=> {}: {}", skill_name, desire, operator, corr_val, bonus-penalty, dice_res, judge)
     } else if penalty > bonus {
-        format!("`技能ロール / {}: {}({}{}, p{})`\n=> {}: {}", skill_name, desire, operator, corr_val, penalty, dice_res, judge)
+        format!("`技能ロール / {}: {}({}{}, p{})`\n=> {}: {}", skill_name, desire, operator, corr_val, penalty-bonus, dice_res, judge)
     } else {
         format!("`技能ロール / {}: {}({}{})`\n=> {}: {}", skill_name, desire, operator, corr_val, dice_res, judge)
     };

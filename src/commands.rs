@@ -181,13 +181,14 @@ pub async fn set(
     let mut params_holder = ctx.data().params_holder.lock().await;
     let before_skill_val = params_holder[0][&u.name][&status_name];
     if operator == "+" {
-        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() += corr; 
+        
+        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_add(corr); 
     } else if operator == "-" {
-        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() -= corr; 
+        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_sub(corr); 
     } else if operator == "*" {
-        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() *= corr; 
+        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_mul(corr); 
     } else if operator == "/" {
-        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() /= corr; 
+        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_div(corr); 
     }
     let after_skill_val = params_holder[0][&u.name][&status_name];
     let response = set_status_msg(
