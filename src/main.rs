@@ -1,6 +1,7 @@
 use std::{collections::HashMap};
 use tokio::sync::Mutex;
 use poise::serenity_prelude as serenity;
+use indexmap::IndexMap;
 
 mod messenger;
 mod session;
@@ -11,7 +12,7 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
 pub struct Data {
-    params_holder: Mutex<Vec<HashMap<String, HashMap<String, usize>>>>,
+    params_holder: Mutex<Vec<HashMap<String, IndexMap<String, usize>>>>,
 }
 
 /// ヘルプを表示します． 

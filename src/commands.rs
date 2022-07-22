@@ -1,8 +1,8 @@
 use crate::messenger::*;
 use crate::session::*;
-
 use futures::stream::{Stream, StreamExt};
 use crate::{Context, Error};
+use poise::serenity_prelude as serenity;
 
 async fn autocomplete_operator(
     _ctx: Context<'_>,
@@ -33,8 +33,7 @@ async fn autocomplete_skill_name(
 ) -> impl Stream<Item = String> {
     let u = ctx.author();
     let params_holder = &*ctx.data().params_holder.lock().await;
-    let mut skill_names = params_holder[0][&u.name].keys().cloned().collect::<Vec<String>>();
-    skill_names.sort_by(|a, b|b.cmp(a));
+    let skill_names = params_holder[0][&u.name].keys().cloned().collect::<Vec<String>>();
     futures::stream::iter(skill_names)
         .filter(move |name| futures::future::ready(name.starts_with(&partial)))
 }
@@ -51,8 +50,15 @@ pub async fn new(
     params_holder.clear();
     params_holder.push(p_params.await);
 
-    let response = format!("`キャラクターシート読み込み`\n完了.");
-    ctx.say(response).await?;
+    let title = format!("キャラクターシート読み込み");
+    let desc = format!("成功しました");
+    ctx.send(|b| {
+        b.content("")
+            .embed(|b| b.title(title)
+                .description(desc)
+                .color(serenity::Colour::DARK_GREEN))
+    })
+    .await?;
     Ok(())
 }
 
@@ -80,8 +86,14 @@ pub async fn skill(
     let u = ctx.author();
     let params_holder = &*ctx.data().params_holder.lock().await;
     let skill_val = params_holder[0][&u.name][&skill_name];
-    let response = skill_dice_msg(skill_name, skill_val, bonus, penalty, operator, corr);
-    ctx.say(response).await?;
+    let (title, desc, color) = skill_dice_msg(skill_name, skill_val, bonus, penalty, operator, corr);
+    ctx.send(|b| {
+        b.content("")
+            .embed(|b| b.title(title)
+                .description(desc)
+                .color(color))
+    })
+    .await?;
     Ok(())
 }
 
@@ -100,11 +112,17 @@ pub async fn dice(
     #[description = "目標値"]
     desire: Option<usize>,
 ) -> Result<(), Error> {
-    let response = match desire {
+    let (title, desc, color) = match desire {
         Some(desire) => simple_dice_with_desire_msg(qty, die, desire),
         None => simple_dice_msg(qty, die),
     };
-    ctx.say(response).await?;
+    ctx.send(|b| {
+        b.content("")
+            .embed(|b| b.title(title)
+                .description(desc)
+                .color(color))
+    })
+    .await?;
     Ok(())
 }
 
@@ -123,11 +141,17 @@ pub async fn sdice(
     #[description = "目標値"]
     desire: Option<usize>,
 ) -> Result<(), Error> {
-    let response = match desire {
+    let (title, desc, color) = match desire {
         Some(desire) => simple_dice_with_desire_msg(qty, die, desire),
         None => simple_dice_msg(qty, die),
     };
-    ctx.say(response).await?;
+    ctx.send(|b| {
+        b.content("")
+            .embed(|b| b.title(title)
+                .description(desc)
+                .color(color))
+    })
+    .await?;
     Ok(())
 }
 
@@ -141,24 +165,42 @@ pub async fn insan(ctx: Context<'_>) -> Result<(), Error> {
 /// 狂気の発作(リアルタイム)を表示します．
 #[poise::command(prefix_command, slash_command)]
 pub async fn real(ctx: Context<'_>) -> Result<(), Error> {
-    let response = insan_realtime_msg();
-    ctx.say(response).await?;
+    let (title, desc, color) = insan_realtime_msg();
+    ctx.send(|b| {
+        b.content("")
+            .embed(|b| b.title(title)
+                .description(desc)
+                .color(color))
+    })
+    .await?;
     Ok(())
 }
 
 /// 狂気の発作(サマリー)を表示します．
 #[poise::command(prefix_command, slash_command)]
 pub async fn summary(ctx: Context<'_>) -> Result<(), Error> {
-    let response = insan_summary_msg();
-    ctx.say(response).await?;
+    let (title, desc, color) = insan_summary_msg();
+    ctx.send(|b| {
+        b.content("")
+            .embed(|b| b.title(title)
+                .description(desc)
+                .color(color))
+    })
+    .await?;
     Ok(())
 }
 
 /// キャラクターを作成します．
 #[poise::command(prefix_command, slash_command)]
 pub async fn cm(ctx: Context<'_>) -> Result<(), Error> {
-    let response = character_make();
-    ctx.say(response).await?;
+    let (title, desc, color) = character_make();
+    ctx.send(|b| {
+        b.content("")
+            .embed(|b| b.title(title)
+                .description(desc)
+                .color(color))
+    })
+    .await?;
     Ok(())
 }
 
@@ -181,7 +223,6 @@ pub async fn set(
     let mut params_holder = ctx.data().params_holder.lock().await;
     let before_skill_val = params_holder[0][&u.name][&status_name];
     if operator == "+" {
-        
         *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_add(corr); 
     } else if operator == "-" {
         *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_sub(corr); 
@@ -191,12 +232,18 @@ pub async fn set(
         *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_div(corr); 
     }
     let after_skill_val = params_holder[0][&u.name][&status_name];
-    let response = set_status_msg(
+    let (title, desc, color) = set_status_msg(
         &status_name, 
         before_skill_val, 
         after_skill_val, 
         &operator, corr
     );
-    ctx.say(response).await?;
+    ctx.send(|b| {
+        b.content("")
+            .embed(|b| b.title(title)
+                .description(desc)
+                .color(color))
+    })
+    .await?;
     Ok(())
 }

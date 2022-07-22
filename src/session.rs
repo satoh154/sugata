@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use indexmap::IndexMap;
 
 extern crate google_sheets4 as sheets4;
 extern crate hyper;
@@ -7,8 +8,8 @@ extern crate yup_oauth2 as oauth2;
 use sheets4::Error;
 use sheets4::Sheets;
 
-pub async fn load_player_params(gsheet_id: String) -> HashMap<String, HashMap<String, usize>> {
-    let mut player_params:HashMap<String, HashMap<String, usize>> = HashMap::new();
+pub async fn load_player_params(gsheet_id: String) -> HashMap<String, IndexMap<String, usize>> {
+    let mut player_params:HashMap<String, IndexMap<String, usize>> = HashMap::new();
     let mut players: Vec<String> = Vec::new();
 
     let secret = yup_oauth2::read_application_secret("clientsecret.json")
@@ -61,7 +62,7 @@ pub async fn load_player_params(gsheet_id: String) -> HashMap<String, HashMap<St
     }
     for player in players {
         let range = format!("{}{}", player, "!A25:B113");
-        let mut tmp_params: HashMap<String, usize> = HashMap::new();
+        let mut tmp_params: IndexMap<String, usize> = IndexMap::new();
         let p_result = hub
             .spreadsheets()
             .values_get(&gsheet_id, &range)
@@ -87,6 +88,7 @@ pub async fn load_player_params(gsheet_id: String) -> HashMap<String, HashMap<St
                     let skill_val = p_param[1].parse::<usize>().unwrap();
                     tmp_params.insert(skill_name, skill_val);
                 }
+                tmp_params.sort_by(|_, b, _, d|d.cmp(b));
                 player_params.insert(player, tmp_params);
             }
         }

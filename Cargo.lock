@@ -1222,6 +1222,7 @@ dependencies = [
  "google-sheets4",
  "hyper",
  "hyper-rustls",
+ "indexmap",
  "log 0.4.17",
  "poise",
  "rand",

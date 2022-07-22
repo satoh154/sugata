@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-
 use rand::{thread_rng, Rng};
+use poise::serenity_prelude::Colour;
 
 fn get_dice_val(qty: usize, die:usize, bonus: Option<usize>, penalty: Option<usize>) -> usize {
     let mut rng = thread_rng();
@@ -37,34 +37,36 @@ fn get_dice_val(qty: usize, die:usize, bonus: Option<usize>, penalty: Option<usi
     dice_res
 }
 
-pub fn simple_dice_msg(qty: usize, die: usize) -> String {
+pub fn simple_dice_msg(qty: usize, die: usize) -> (String, String, Colour) {
     let dice_res = get_dice_val(qty, die, Some(0), Some(0));
-    let msg = format!("`ダイスロール`\n{}d{} => {}", qty, die, dice_res);
+    let title = format!("ダイスロール");
+    let desc = format!("{}d{} => **{}**", qty, die, dice_res);
 
-    msg
+    (title, desc, Colour::DARK_BLUE)
 }
 
-pub fn simple_dice_with_desire_msg(qty: usize, die: usize, desire: usize) -> String {
+pub fn simple_dice_with_desire_msg(qty: usize, die: usize, desire: usize) -> (String, String, Colour) {
     let dice_res = get_dice_val(qty, die, Some(0), Some(0));
 
-    let judge =
+    let (judge, color) =
         if dice_res == 1 {
-            "**Critical**"
+            ("**Critical**", Colour::DARK_GOLD)
         } else if dice_res <= desire / 5 {
-            "**Extreme**"
+            ("**Extreme**", Colour::DARK_MAGENTA)
         } else if dice_res <= desire / 2 {
-            "**Hard**"
+            ("**Hard**", Colour::DARK_ORANGE)
         } else if dice_res <= desire {
-            "**Regular**"
+            ("**Regular**", Colour::DARK_GREEN)
         } else if dice_res >= 96 {
-            "**Failure(Fumble)**"
+            ("**Failure(Fumble)**", Colour::DARK_PURPLE)
         } else {
-            "**Failure**"
+            ("**Failure**", Colour::DARK_GREY)
         };
 
-    let msg = format!("`ダイスロール / 目標値: {}`\n{}d{} => {}: {}", desire, qty, die, dice_res, judge);
+    let title = format!("ダイスロール / 目標値: {}", desire);
+    let desc = format!("{}d{} => {}: **{}**", qty, die, dice_res, judge);
 
-    msg
+    (title, desc, color)
 }
 
 pub fn skill_dice_msg(
@@ -74,7 +76,7 @@ pub fn skill_dice_msg(
     penalty: Option<usize>, 
     operator: Option<String>, 
     corr_val: Option<usize>
-) -> String {    
+) -> (String, String, Colour) {    
     if let Some(o) = &operator {
         if let Some(c) = corr_val {
             if o == "+" {
@@ -91,37 +93,47 @@ pub fn skill_dice_msg(
 
     let dice_res = get_dice_val(1, 100, bonus, penalty);
 
-    let judge =
+    let (judge, color) =
         if dice_res == 1 {
-            "**Critical**"
+            ("**Critical**", Colour::DARK_GOLD)
         } else if dice_res <= desire / 5 {
-            "**Extreme**"
+            ("**Extreme**", Colour::DARK_MAGENTA)
         } else if dice_res <= desire / 2 {
-            "**Hard**"
+            ("**Hard**", Colour::DARK_ORANGE)
         } else if dice_res <= desire {
-            "**Regular**"
+            ("**Regular**", Colour::DARK_GREEN)
         } else if dice_res >= 96 {
-            "**Failure(Fumble)**"
+            ("**Failure(Fumble)**", Colour::DARK_PURPLE)
         } else {
-            "**Failure**"
+            ("**Failure**", Colour::DARK_GREY)
         };
 
     let bonus = bonus.unwrap_or(0);
     let penalty = penalty.unwrap_or(0);
     let operator = operator.unwrap_or("±".to_string());
     let corr_val = corr_val.unwrap_or(0);
-    let msg = if bonus > penalty {
-        format!("`技能ロール / {}: {}({}{}, b{})`\n=> {}: {}", skill_name, desire, operator, corr_val, bonus-penalty, dice_res, judge)
+
+    let (title, desc) = if bonus > penalty {
+        (
+            format!("技能ロール / {}: {}({}{}, b{})", skill_name, desire, operator, corr_val, bonus-penalty),
+            format!("=> {}: **{}**", dice_res, judge)
+        )
     } else if penalty > bonus {
-        format!("`技能ロール / {}: {}({}{}, p{})`\n=> {}: {}", skill_name, desire, operator, corr_val, penalty-bonus, dice_res, judge)
+        (
+            format!("技能ロール / {}: {}({}{}, p{})", skill_name, desire, operator, corr_val, penalty-bonus),
+            format!("=> {}: **{}**", dice_res, judge)
+        )
     } else {
-        format!("`技能ロール / {}: {}({}{})`\n=> {}: {}", skill_name, desire, operator, corr_val, dice_res, judge)
+        (
+            format!("技能ロール / {}: {}({}{})", skill_name, desire, operator, corr_val),
+            format!("=> {}: **{}**", dice_res, judge)
+        )
     };
 
-    msg
+    (title, desc, color)
 }
 
-pub fn insan_realtime_msg() -> String {
+pub fn insan_realtime_msg() -> (String, String, Colour) {
     let mut rng = thread_rng();
     let insan_num:usize = rng.gen_range(1..=10);
     let round:usize = rng.gen_range(1..=10);
@@ -159,11 +171,12 @@ pub fn insan_realtime_msg() -> String {
                 新しいマニアに陥り，今ある状況でそのマニアについて没頭してしまう．", round),
         _ => format!("")
     };
-    let msg = format!("`狂気の発作(リアルタイム)`\n{}", insan_msg);
-    msg
+    let title = format!("狂気の発作(リアルタイム)");
+    let desc = format!("{}", insan_msg);
+    (title, desc, Colour::DARKER_GREY)
 }
 
-pub fn insan_summary_msg() -> String {
+pub fn insan_summary_msg() -> (String, String, Colour) {
     let mut rng = thread_rng();
     let insan_num:usize = rng.gen_range(1..=10);
 
@@ -205,11 +218,12 @@ pub fn insan_summary_msg() -> String {
                 新たにマニアを獲得する．"),
         _ => format!("")
     };
-    let msg = format!("`狂気の発作(サマリ)`\n{}", insan_msg);
-    msg
+    let title = format!("狂気の発作(サマリ)");
+    let desc = format!("{}", insan_msg);
+    (title, desc, Colour::DARKER_GREY)
 }
 
-pub fn character_make() -> String {
+pub fn character_make() -> (String, String, Colour) {
     let mut status:HashMap<&str, String> = HashMap::new();
     status.insert("STR",(5 * get_dice_val(3, 6, Some(0), Some(0))).to_string());
     status.insert("CON",(5 * get_dice_val(3, 6, Some(0), Some(0))).to_string());
@@ -253,9 +267,9 @@ pub fn character_make() -> String {
     } else {
         status.insert("MOV", String::from("8"));
     }
-    let msg = format!(
-        "`探索者作成`\n\
-        STR: {}\n\
+    let title = format!("探索者作成");
+    let desc = format!(
+        "STR: {}\n\
         CON: {}\n\
         SIZ: {}\n\
         DEX: {}\n\
@@ -274,14 +288,13 @@ pub fn character_make() -> String {
         status["POW"], status["EDU"], status["SAN"], status["MP"], status["幸運"], status["耐久力"], 
         status["db"], status["ビルド"], status["MOV"]
     );
-    msg
+
+    (title, desc, Colour::DARK_BLUE)
 }
 
-pub fn set_status_msg(skill_name: &str, before: usize, after: usize, operator: &str, corr: usize) -> String {
-    let msg = format!(
-        "`ステータス修正 / {}({}) {} {}`\n\
-        => **{}**",
-        skill_name, before, operator, corr, after
-    );
-    msg
+pub fn set_status_msg(skill_name: &str, before: usize, after: usize, operator: &str, corr: usize) -> (String, String, Colour) {
+    let title = format!("ステータス修正 / {}({}) {} {}", skill_name, before, operator, corr);
+    let desc = format!("=> **{}**", after);
+
+    (title, desc, Colour::DARK_BLUE)
 }
