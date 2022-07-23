@@ -64,7 +64,7 @@ async fn main() {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD TOKEN");
     let framework = poise::Framework::build()
         .options(poise::FrameworkOptions {
-            commands: vec![set(), cm(), skill(), new(), insan(), dice(), sdice(), register(), help()],
+            commands: vec![dice(), sdice(), skill(), set(), cm(), insan(), new(), register(), help()],
             on_error: |error| Box::pin(on_error(error)),
             ..Default::default()
         })

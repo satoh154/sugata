@@ -8,7 +8,7 @@ extern crate yup_oauth2 as oauth2;
 use sheets4::Error;
 use sheets4::Sheets;
 
-pub async fn load_player_params(gsheet_id: String) -> HashMap<String, IndexMap<String, usize>> {
+pub async fn load_player_params(gsheet_id: String) -> Result<HashMap<String, IndexMap<String, usize>>, String> {
     let mut player_params:HashMap<String, IndexMap<String, usize>> = HashMap::new();
     let mut players: Vec<String> = Vec::new();
 
@@ -52,7 +52,7 @@ pub async fn load_player_params(gsheet_id: String) -> HashMap<String, IndexMap<S
             | Error::Failure(_)
             | Error::BadRequest(_)
             | Error::FieldClash(_)
-            | Error::JsonDecodeError(_, _) => println!("{}", e),
+            | Error::JsonDecodeError(_, _) => return Err(String::from("シートIDが間違っているようです．")),
         },
         Ok(res) => {
             for el in res.1.sheets.unwrap() {
@@ -80,18 +80,22 @@ pub async fn load_player_params(gsheet_id: String) -> HashMap<String, IndexMap<S
                 | Error::Failure(_)
                 | Error::BadRequest(_)
                 | Error::FieldClash(_)
-                | Error::JsonDecodeError(_, _) => println!("{}", e),
+                | Error::JsonDecodeError(_, _) => return Err(String::from("シートIDが間違っているようです．")),
             },
             Ok(res) => {
                 for p_param in res.1.values.unwrap() {
                     let skill_name = p_param[0].clone();
-                    let skill_val = p_param[1].parse::<usize>().unwrap();
-                    tmp_params.insert(skill_name, skill_val);
+                    let skill_val = p_param[1].parse::<usize>();
+                    match skill_val {
+                        Ok(v) => tmp_params.insert(skill_name, v),
+                        Err(_v) => return Err(String::from("'現在値'列に数値以外のデータが入力されています．"))
+                    };
+
                 }
                 tmp_params.sort_by(|_, b, _, d|d.cmp(b));
                 player_params.insert(player, tmp_params);
             }
         }
     }
-    player_params
+    Ok(player_params)
 }

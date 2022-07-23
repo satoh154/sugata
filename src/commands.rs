@@ -1,7 +1,10 @@
+#![allow(unused_mut)]
+#![allow(unused_assignments)]
+
 use crate::messenger::*;
 use crate::session::*;
-use futures::stream::{Stream, StreamExt};
 use crate::{Context, Error};
+use futures::stream::{Stream, StreamExt};
 use poise::serenity_prelude as serenity;
 
 async fn autocomplete_operator(
@@ -39,26 +42,48 @@ async fn autocomplete_skill_name(
 }
 
 /// キャラクターシートを読み込みます．
-#[poise::command(prefix_command)]
+#[poise::command(prefix_command, slash_command)]
 pub async fn new(
     ctx: Context<'_>,
     #[description = "スプレッドシートID"] gsheet_id: String,
 ) -> Result<(), Error> {
     let p_params = load_player_params(gsheet_id);
-    let mut params_holder = ctx.data().params_holder.lock().await;
+    match p_params.await {
+        Ok(p) => {
+            let mut params_holder = ctx.data().params_holder.lock().await;
 
-    params_holder.clear();
-    params_holder.push(p_params.await);
+            params_holder.clear();
+            params_holder.push(p);
 
-    let title = format!("キャラクターシート読み込み");
-    let desc = format!("成功しました");
-    ctx.send(|b| {
-        b.content("")
-            .embed(|b| b.title(title)
-                .description(desc)
-                .color(serenity::Colour::DARK_GREEN))
-    })
-    .await?;
+            let title = format!("キャラクターシート読み込み");
+            let desc = format!("完了しました．");
+
+            ctx.send(|b| {
+                b.content("")
+                    .embed(|b| b.title(title)
+                        .description(desc)
+                        .color(serenity::Colour::DARK_GREEN))
+            })
+            .await?;
+        },
+        Err(p) => {
+            let title = format!("エラー");
+            let desc = p;
+            
+            ctx.send(|b| {
+                b.content("")
+                    .embed(|b| b.title(title)
+                        .description(desc)
+                        .color(serenity::Colour::DARK_RED)
+                        .footer(|b| {
+                            b.icon_url("https://i.ibb.co/9hS0z52/sugata-unchecked.png").text("occurs at `new`")
+                        })
+                    )
+            })
+            .await?;
+        }
+    };
+
     Ok(())
 }
 
@@ -85,13 +110,76 @@ pub async fn skill(
 ) -> Result<(), Error> {
     let u = ctx.author();
     let params_holder = &*ctx.data().params_holder.lock().await;
-    let skill_val = params_holder[0][&u.name][&skill_name];
-    let (title, desc, color) = skill_dice_msg(skill_name, skill_val, bonus, penalty, operator, corr);
+
+    let mut title = String::from("エラー");
+    let mut desc = String::from("");
+    match params_holder.clone().get(0) {
+        Some(maps) => {
+            match maps.get(&u.name) {
+                Some(map) => {
+                    match map.get(&skill_name) {
+                        Some(v) => {
+                            if let Some(ope) = operator {
+                                if vec!["+", "-", "*", "/"].iter().any(|&k| k==&ope) {
+                                    let (title, desc, color) = skill_dice_msg(
+                                            skill_name, 
+                                            *v, 
+                                            bonus, 
+                                            penalty, 
+                                            Some(ope), 
+                                            corr
+                                    );
+                                    ctx.send(|b| {
+                                        b.content("")
+                                            .embed(|b| b.title(title)
+                                                .description(desc)
+                                                .color(color))
+                                    })
+                                    .await?;
+                                    return Ok(())
+                                } else {
+                                    desc = format!("無効な演算子: **{}** が入力されています．", &ope)
+                                }
+                            } else {
+                                let (title, desc, color) = skill_dice_msg(
+                                        skill_name, 
+                                        *v, 
+                                        bonus, 
+                                        penalty, 
+                                        operator, 
+                                        corr
+                                );
+                                ctx.send(|b| {
+                                    b.content("")
+                                        .embed(|b| b.title(title)
+                                            .description(desc)
+                                            .color(color))
+                                })
+                                .await?;
+                                return Ok(())
+                            }
+                        },
+                        _ => desc = format!("**{}**に該当する技能がありません．", &skill_name)
+                    };
+                },
+                _ => desc = format!(
+                    "**{}**のデータは読み込まれていません．\n\
+                    ユーザーのキャラクターシートを作成し，`/new`で再ロードしてください．", &u.name)
+            };
+        },
+        _ => desc = format!(
+            "キャラクターシートが読み込まれていません．\n\
+            `/new`でロードしてください．")
+    };
     ctx.send(|b| {
         b.content("")
             .embed(|b| b.title(title)
                 .description(desc)
-                .color(color))
+                .color(serenity::Colour::DARK_RED)
+                .footer(|b| {
+                    b.icon_url("https://i.ibb.co/9hS0z52/sugata-unchecked.png").text("occurs at `skill`")
+                })
+            )
     })
     .await?;
     Ok(())
@@ -221,28 +309,70 @@ pub async fn set(
 ) -> Result<(), Error> {
     let u = ctx.author();
     let mut params_holder = ctx.data().params_holder.lock().await;
-    let before_skill_val = params_holder[0][&u.name][&status_name];
-    if operator == "+" {
-        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_add(corr); 
-    } else if operator == "-" {
-        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_sub(corr); 
-    } else if operator == "*" {
-        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_mul(corr); 
-    } else if operator == "/" {
-        *params_holder[0].entry(u.name.clone().into()).or_default().entry(status_name.clone()).or_default() = before_skill_val.saturating_div(corr); 
-    }
-    let after_skill_val = params_holder[0][&u.name][&status_name];
-    let (title, desc, color) = set_status_msg(
-        &status_name, 
-        before_skill_val, 
-        after_skill_val, 
-        &operator, corr
-    );
+    let mut title = String::from("エラー");
+    let mut desc = String::from("");
+    match params_holder.clone().get(0) {
+        Some(maps) => {
+            match maps.get(&u.name) {
+                Some(map) => {
+                    match map.get(&status_name) {
+                        Some(v) => {
+                            if vec!["+", "-", "*", "/"].iter().any(|&k| k==&operator) {
+                                *params_holder[0]
+                                    .entry(u.name.clone().into())
+                                    .or_default()
+                                    .entry(status_name.clone())
+                                    .or_default() = if operator == "+" {
+                                            v.saturating_add(corr) 
+                                        } else if operator == "-" {
+                                            v.saturating_sub(corr) 
+                                        } else if operator == "*" {
+                                            v.saturating_mul(corr) 
+                                        } else if operator == "/" {
+                                            v.saturating_div(corr) 
+                                        } else {
+                                            v.saturating_add(0) 
+                                        };
+                                let after_skill_val = params_holder[0][&u.name][&status_name];
+                                let (title, desc, color) = set_status_msg(
+                                    &status_name, 
+                                    *v, 
+                                    after_skill_val, 
+                                    &operator, corr
+                                );
+                                ctx.send(|b| {
+                                    b.content("")
+                                        .embed(|b| b.title(title)
+                                            .description(desc)
+                                            .color(color))
+                                })
+                                .await?;
+                                return Ok(())
+                            } else {
+                                desc = format!("無効な演算子: **{}** が入力されています．", &operator)
+                            }
+                        },
+                        _ => desc = format!("**{}**に該当する技能がありません．", &status_name)
+                    };
+                },
+                _ => desc = format!(
+                    "**{}**のデータは読み込まれていません．\n\
+                    ユーザーのキャラクターシートを作成し，`/new`で再ロードしてください．", &u.name)
+            };
+        },
+        _ => desc = format!(
+            "キャラクターシートが読み込まれていません．\n\
+            `/new`でロードしてください．")
+    };
     ctx.send(|b| {
         b.content("")
             .embed(|b| b.title(title)
                 .description(desc)
-                .color(color))
+                .color(serenity::Colour::DARK_RED)
+                .footer(|b| {
+                    b.icon_url("https://i.ibb.co/9hS0z52/sugata-unchecked.png").text("occurs at `set`")
+                })
+            )
     })
     .await?;
     Ok(())
