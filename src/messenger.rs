@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use indexmap::IndexMap;
 use rand::{thread_rng, Rng};
 use poise::serenity_prelude::Colour;
 
@@ -295,6 +296,34 @@ pub fn character_make() -> (String, String, Colour) {
 pub fn set_status_msg(skill_name: &str, before: usize, after: usize, operator: &str, corr: usize) -> (String, String, Colour) {
     let title = format!("ステータス修正 / {}({}) {} {}", skill_name, before, operator, corr);
     let desc = format!("=> **{}**", after);
+
+    (title, desc, Colour::DARK_BLUE)
+}
+
+pub fn get_status_msg(user_name: &str, character_name: &str, params: &IndexMap<String, usize>) -> (String, String, Colour) {
+    let title = format!("キャラクターステータス");
+    let desc = format!(
+        "__{}__\n\
+        探索者名: {}\n\
+        STR: {}\n\
+        CON: {}\n\
+        SIZ: {}\n\
+        DEX: {}\n\
+        APP: {}\n\
+        INT: {}\n\
+        POW: {}\n\
+        EDU: {}\n\
+        SAN: {}\n\
+        MP: {}\n\
+        幸運: {}\n\
+        耐久力: {}\n\
+        db: {}\n\
+        ビルド: {}\n\
+        MOV: {}", 
+        user_name, character_name, params["STR"], params["CON"], params["SIZ"], params["DEX"], params["APP"], params["INT"], 
+        params["POW"], params["EDU"], params["SAN"], params["MP"], params["幸運"], params["耐久力"], 
+        params["db"], params["ビルド"], params["MOV"]
+    );
 
     (title, desc, Colour::DARK_BLUE)
 }

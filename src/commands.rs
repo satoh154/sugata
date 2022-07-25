@@ -36,31 +36,40 @@ async fn autocomplete_skill_name(
 ) -> impl Stream<Item = String> {
     let u = ctx.author();
     let params_holder = &*ctx.data().params_holder.lock().await;
-    let skill_names = params_holder[0][&u.name].keys().cloned().collect::<Vec<String>>();
+    let skill_names = params_holder[0][&u.name].1.keys().cloned().collect::<Vec<String>>();
     futures::stream::iter(skill_names)
         .filter(move |name| futures::future::ready(name.starts_with(&partial)))
 }
 
 /// キャラクターシートを読み込みます．
 #[poise::command(prefix_command, slash_command)]
-pub async fn new(
+pub async fn load(
     ctx: Context<'_>,
     #[description = "スプレッドシートID"] gsheet_id: String,
 ) -> Result<(), Error> {
-    let p_params = load_player_params(gsheet_id);
+    let p_params = load_player_params(gsheet_id.clone());
     match p_params.await {
         Ok(p) => {
             let mut params_holder = ctx.data().params_holder.lock().await;
 
             params_holder.clear();
-            params_holder.push(p);
+            params_holder.push(p.clone());
 
             let title = format!("キャラクターシート読み込み");
-            let desc = format!("完了しました．");
+            let mut desc = format!("");
+            for (i, (player_name, params)) in p.iter().enumerate() {
+                let character_name = &params.0;
+                if i + 1 == p.len() {
+                    desc += &format!("{}: **{}**", player_name, character_name);
+                } else {
+                    desc += &format!("{}: **{}**\n", player_name, character_name);
+                }
+            }
 
             ctx.send(|b| {
                 b.content("")
                     .embed(|b| b.title(title)
+                        .url(format!("https://docs.google.com/spreadsheets/d/{}", gsheet_id))
                         .description(desc)
                         .color(serenity::Colour::DARK_GREEN))
             })
@@ -76,7 +85,7 @@ pub async fn new(
                         .description(desc)
                         .color(serenity::Colour::DARK_RED)
                         .footer(|b| {
-                            b.icon_url("https://i.ibb.co/9hS0z52/sugata-unchecked.png").text("occurs at `new`")
+                            b.icon_url("https://i.ibb.co/9hS0z52/sugata-unchecked.png").text("occurs at `load`")
                         })
                     )
             })
@@ -117,7 +126,7 @@ pub async fn skill(
         Some(maps) => {
             match maps.get(&u.name) {
                 Some(map) => {
-                    match map.get(&skill_name) {
+                    match map.1.get(&skill_name) {
                         Some(v) => {
                             if let Some(ope) = operator {
                                 if vec!["+", "-", "*", "/"].iter().any(|&k| k==&ope) {
@@ -164,12 +173,12 @@ pub async fn skill(
                 },
                 _ => desc = format!(
                     "**{}**のデータは読み込まれていません．\n\
-                    ユーザーのキャラクターシートを作成し，`/new`で再ロードしてください．", &u.name)
+                    ユーザーのキャラクターシートを作成し，`/load`で再ロードしてください．", &u.name)
             };
         },
         _ => desc = format!(
             "キャラクターシートが読み込まれていません．\n\
-            `/new`でロードしてください．")
+            `/load`でロードしてください．")
     };
     ctx.send(|b| {
         b.content("")
@@ -280,7 +289,7 @@ pub async fn summary(ctx: Context<'_>) -> Result<(), Error> {
 
 /// キャラクターを作成します．
 #[poise::command(prefix_command, slash_command)]
-pub async fn cm(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn make(ctx: Context<'_>) -> Result<(), Error> {
     let (title, desc, color) = character_make();
     ctx.send(|b| {
         b.content("")
@@ -315,12 +324,13 @@ pub async fn set(
         Some(maps) => {
             match maps.get(&u.name) {
                 Some(map) => {
-                    match map.get(&status_name) {
+                    match map.1.get(&status_name) {
                         Some(v) => {
                             if vec!["+", "-", "*", "/"].iter().any(|&k| k==&operator) {
                                 *params_holder[0]
                                     .entry(u.name.clone().into())
                                     .or_default()
+                                    .1
                                     .entry(status_name.clone())
                                     .or_default() = if operator == "+" {
                                             v.saturating_add(corr) 
@@ -333,7 +343,7 @@ pub async fn set(
                                         } else {
                                             v.saturating_add(0) 
                                         };
-                                let after_skill_val = params_holder[0][&u.name][&status_name];
+                                let after_skill_val = params_holder[0][&u.name].1[&status_name];
                                 let (title, desc, color) = set_status_msg(
                                     &status_name, 
                                     *v, 
@@ -357,12 +367,12 @@ pub async fn set(
                 },
                 _ => desc = format!(
                     "**{}**のデータは読み込まれていません．\n\
-                    ユーザーのキャラクターシートを作成し，`/new`で再ロードしてください．", &u.name)
+                    ユーザーのキャラクターシートを作成し，`/load`で再ロードしてください．", &u.name)
             };
         },
         _ => desc = format!(
             "キャラクターシートが読み込まれていません．\n\
-            `/new`でロードしてください．")
+            `/load`でロードしてください．")
     };
     ctx.send(|b| {
         b.content("")
@@ -376,4 +386,52 @@ pub async fn set(
     })
     .await?;
     Ok(())
+}
+
+/// 現在のステータスを表示します．
+#[poise::command(prefix_command, slash_command)]
+pub async fn show(
+    ctx: Context<'_>,
+    #[description = "プレイヤー"] player: Option<serenity::User>,
+) -> Result<(), Error> {
+    let u = player.as_ref().unwrap_or_else(|| ctx.author());
+    let mut params_holder = ctx.data().params_holder.lock().await;
+    let mut title = String::from("エラー");
+    let mut desc = String::from("");
+    match params_holder.clone().get(0) {
+        Some(maps) => {
+            match maps.get(&u.name) {
+                Some(map) => {
+                    let (title, desc, color) = get_status_msg(&u.name, &map.0, &map.1);
+                    ctx.send(|b| {
+                        b.content("")
+                            .embed(|b| b.title(title)
+                                .description(desc)
+                                .color(color))
+                    })
+                    .await?;
+                    return Ok(())
+                },
+                _ => desc = format!(
+                    "**{}**のデータは読み込まれていません．\n\
+                    ユーザーのキャラクターシートを作成し，`/load`で再ロードしてください．", &u.name)
+            }
+        },
+        _ => desc = format!(
+            "キャラクターシートが読み込まれていません．\n\
+            `/load`でロードしてください．")
+    }
+    ctx.send(|b| {
+        b.content("")
+            .embed(|b| b.title(title)
+                .description(desc)
+                .color(serenity::Colour::DARK_RED)
+                .footer(|b| {
+                    b.icon_url("https://i.ibb.co/9hS0z52/sugata-unchecked.png").text("occurs at `show`")
+                })
+            )
+    })
+    .await?;
+    Ok(())
+
 }

@@ -12,7 +12,7 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
 pub struct Data {
-    params_holder: Mutex<Vec<HashMap<String, IndexMap<String, usize>>>>,
+    params_holder: Mutex<Vec<HashMap<String, (String, IndexMap<String, usize>)>>>,
 }
 
 /// ヘルプを表示します． 
@@ -64,7 +64,7 @@ async fn main() {
     let token = std::env::var("DISCORD_TOKEN").expect("missing DISCORD TOKEN");
     let framework = poise::Framework::build()
         .options(poise::FrameworkOptions {
-            commands: vec![dice(), sdice(), skill(), set(), cm(), insan(), new(), register(), help()],
+            commands: vec![dice(), sdice(), skill(), show(), set(), make(), insan(), load(), register(), help()],
             on_error: |error| Box::pin(on_error(error)),
             ..Default::default()
         })

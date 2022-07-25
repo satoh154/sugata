@@ -8,8 +8,8 @@ extern crate yup_oauth2 as oauth2;
 use sheets4::Error;
 use sheets4::Sheets;
 
-pub async fn load_player_params(gsheet_id: String) -> Result<HashMap<String, IndexMap<String, usize>>, String> {
-    let mut player_params:HashMap<String, IndexMap<String, usize>> = HashMap::new();
+pub async fn load_player_params(gsheet_id: String) -> Result<HashMap<String, (String, IndexMap<String, usize>)>, String> {
+    let mut player_params:HashMap<String, (String, IndexMap<String, usize>)> = HashMap::new();
     let mut players: Vec<String> = Vec::new();
 
     let secret = yup_oauth2::read_application_secret("clientsecret.json")
@@ -61,7 +61,7 @@ pub async fn load_player_params(gsheet_id: String) -> Result<HashMap<String, Ind
         }
     }
     for player in players {
-        let range = format!("{}{}", player, "!A25:B113");
+        let range = format!("{}{}", player, "!A1:B113");
         let mut tmp_params: IndexMap<String, usize> = IndexMap::new();
         let p_result = hub
             .spreadsheets()
@@ -83,17 +83,29 @@ pub async fn load_player_params(gsheet_id: String) -> Result<HashMap<String, Ind
                 | Error::JsonDecodeError(_, _) => return Err(String::from("シートIDが間違っているようです．")),
             },
             Ok(res) => {
-                for p_param in res.1.values.unwrap() {
-                    let skill_name = p_param[0].clone();
-                    let skill_val = p_param[1].parse::<usize>();
-                    match skill_val {
-                        Ok(v) => tmp_params.insert(skill_name, v),
-                        Err(_v) => return Err(String::from("'現在値'列に数値以外のデータが入力されています．"))
-                    };
-
+                let mut character_name = String::from("");
+                for (i, p_param) in res.1.values.unwrap().iter().enumerate() {
+                    if i >= 24 {
+                        let skill_name = p_param[0].clone();
+                        let skill_val = p_param[1].parse::<usize>();
+                        match skill_val {
+                            Ok(v) => tmp_params.insert(skill_name, v),
+                            Err(_v) => return Err(format!(
+                                "'現在値'列に数値以外のデータが入力されています．\n\
+                                @{}, {}", &player, &skill_name))
+                        };
+                    } else if i == 1 {
+                        let c_name = p_param.get(1);
+                        match c_name {
+                            Some(n) => character_name += &n,
+                            None => return Err(format!(
+                                "探索者名が入力されていません．\n\
+                                @{}", &player))
+                        }
+                    }
                 }
                 tmp_params.sort_by(|_, b, _, d|d.cmp(b));
-                player_params.insert(player, tmp_params);
+                player_params.insert(player, (character_name, tmp_params));
             }
         }
     }
