@@ -18,7 +18,7 @@ fn get_dice_val(qty: usize, die:usize, bonus: Option<usize>, penalty: Option<usi
     if bonus > penalty {
         let corr_dice_num = bonus - penalty;
         for _i in 1..=corr_dice_num {
-            corr_dice_vec.push(rng.gen_range(1..=10));
+            corr_dice_vec.push(rng.gen_range(0..=10));
         }
         let corr_dice = corr_dice_vec.iter().min().unwrap();
         if dice_res > corr_dice * 10 {
@@ -27,7 +27,7 @@ fn get_dice_val(qty: usize, die:usize, bonus: Option<usize>, penalty: Option<usi
     } else if penalty > bonus {
         let corr_dice_num = penalty - bonus;
         for _i in 1..=corr_dice_num {
-            corr_dice_vec.push(rng.gen_range(1..=10));
+            corr_dice_vec.push(rng.gen_range(0..=10));
         }
         let corr_dice = corr_dice_vec.iter().max().unwrap();
         if dice_res < corr_dice * 10 {
