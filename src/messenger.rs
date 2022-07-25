@@ -55,9 +55,9 @@ pub fn simple_dice_with_desire_msg(qty: usize, die: usize, desire: usize) -> (St
         } else if dice_res <= desire / 5 {
             ("**Extreme**", Colour::DARK_MAGENTA)
         } else if dice_res <= desire / 2 {
-            ("**Hard**", Colour::DARK_ORANGE)
+            ("**Hard**", Colour::DARK_GREEN)
         } else if dice_res <= desire {
-            ("**Regular**", Colour::DARK_GREEN)
+            ("**Regular**", Colour::DARK_BLUE)
         } else if dice_res >= 96 {
             ("**Failure(Fumble)**", Colour::DARK_PURPLE)
         } else {
@@ -100,9 +100,9 @@ pub fn skill_dice_msg(
         } else if dice_res <= desire / 5 {
             ("**Extreme**", Colour::DARK_MAGENTA)
         } else if dice_res <= desire / 2 {
-            ("**Hard**", Colour::DARK_ORANGE)
+            ("**Hard**", Colour::DARK_GREEN)
         } else if dice_res <= desire {
-            ("**Regular**", Colour::DARK_GREEN)
+            ("**Regular**", Colour::DARK_BLUE)
         } else if dice_res >= 96 {
             ("**Failure(Fumble)**", Colour::DARK_PURPLE)
         } else {

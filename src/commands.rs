@@ -71,7 +71,7 @@ pub async fn load(
                     .embed(|b| b.title(title)
                         .url(format!("https://docs.google.com/spreadsheets/d/{}", gsheet_id))
                         .description(desc)
-                        .color(serenity::Colour::DARK_GREEN))
+                        .color(serenity::Colour::DARK_BLUE))
             })
             .await?;
         },
